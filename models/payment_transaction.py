@@ -332,11 +332,15 @@ class PaymentTransaction(models.Model):
             return
 
         # 1. Record Locking Strategy: Prevent Race Conditions (Simultaneous Webhooks)
-        # Using ORM with_for_update instead of direct SQL to prevent direct SQL usage
+        # We use direct SQL to ensure the record is locked while we process the update.
+        # This prevents two webhooks from processing the same transaction at once.
         try:
-            self.with_for_update(nowait=True).read(['state'])
+            self.env.cr.execute(
+                "SELECT id FROM payment_transaction WHERE id = %s FOR UPDATE",
+                [self.id]
+            )
         except Exception as e:
-            _logger.warning("Paylabs: Transaction %s is currently locked by another process. Skipping to avoid race condition.", self.reference)
+            _logger.warning("Paylabs: Failed to acquire lock for transaction %s: %s", self.reference, e)
             return
 
         # 2. Prevent Duplicate Processing
@@ -376,8 +380,11 @@ class PaymentTransaction(models.Model):
             # This ensures Quotations become Sale Orders instantly even in webhook context.
             try:
                 _logger.info("Paylabs: Starting post-processing for tx %s", self.reference)
-                self._finalize_post_processing()
-                
+                if hasattr(self, '_post_process'):
+                    self._post_process()
+                elif hasattr(self, '_finalize_post_processing'):
+                    self._finalize_post_processing()
+
                 # SUPER HARDENING: If it's still Quotation, force confirm it ONLY if the 
                 # provider setting 'paylabs_after_payment_action' is set to 'order'.
                 if self.provider_id.paylabs_after_payment_action == 'order':
