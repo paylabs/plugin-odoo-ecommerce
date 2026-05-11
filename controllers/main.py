@@ -90,23 +90,30 @@ class PaylabsController(http.Controller):
         raw_body = request.httprequest.get_data(as_text=True)
         headers = dict(request.httprequest.headers)
         
-        _logger.info("=== PAYLABS WEBHOOK DEBUG START ===")
-        _logger.info("Headers: %s", pprint.pformat(headers))
-        _logger.info("Raw Body: %s", raw_body)
-
         # ----------------------------------------------------------------
-        # 2. Parse JSON body
+        # 2. Parse JSON body early for correlation ID
         # ----------------------------------------------------------------
         try:
             notification_data = json.loads(raw_body)
         except json.JSONDecodeError as e:
-            _logger.error("Paylabs webhook: invalid JSON body: %s", e)
+            _logger.error("Paylabs webhook [Correlation: Unknown]: invalid JSON body: %s", e)
             return request.make_response(
                 json.dumps({'errCode': '1', 'errCodeDes': 'Invalid JSON'}),
                 headers={'Content-Type': 'application/json'},
             )
 
-        _logger.info("Parsed Data: %s", pprint.pformat(notification_data))
+        merchant_trade_no = notification_data.get('merchantTradeNo', 'UNKNOWN_REF')
+        request_id = notification_data.get('requestId', 'UNKNOWN_REQ')
+        correlation_id = f"{merchant_trade_no}|{request_id}"
+
+        # Mask sensitive headers
+        safe_headers = headers.copy()
+        if 'X-SIGNATURE' in safe_headers:
+            safe_headers['X-SIGNATURE'] = '***MASKED***'
+        
+        _logger.info("=== PAYLABS WEBHOOK START [%s] ===", correlation_id)
+        _logger.info("Paylabs Webhook [%s]: Headers: %s", correlation_id, pprint.pformat(safe_headers))
+        _logger.info("Paylabs Webhook [%s]: Raw Body: %s", correlation_id, raw_body)
 
         # ----------------------------------------------------------------
         # 3. Extract key fields
@@ -115,8 +122,8 @@ class PaylabsController(http.Controller):
         merchant_id = notification_data.get('merchantId', '')
         request_id = notification_data.get('requestId', '')
 
-        if not merchant_trade_no:
-            _logger.error("Paylabs webhook: missing merchantTradeNo")
+        if not merchant_trade_no or merchant_trade_no == 'UNKNOWN_REF':
+            _logger.error("Paylabs Webhook [%s]: missing merchantTradeNo", correlation_id)
             return self._paylabs_ack(merchant_id, request_id)
 
         # ----------------------------------------------------------------
@@ -132,10 +139,7 @@ class PaylabsController(http.Controller):
                 path=request.httprequest.path
             )
             if not verified:
-                _logger.warning(
-                    "Paylabs webhook: INVALID signature for merchantTradeNo=%s",
-                    merchant_trade_no
-                )
+                _logger.warning("Paylabs Webhook [%s]: INVALID signature", correlation_id)
                 return request.make_response(
                     json.dumps({
                         'merchantId': merchant_id,
@@ -147,9 +151,9 @@ class PaylabsController(http.Controller):
                     headers={'Content-Type': 'application/json'},
                 )
             else:
-                _logger.info("Paylabs webhook: Signature verified successfully.")
+                _logger.info("Paylabs Webhook [%s]: Signature verified successfully.", correlation_id)
         else:
-            _logger.error("Paylabs webhook: Missing X-SIGNATURE or X-TIMESTAMP. Security rejection.")
+            _logger.error("Paylabs Webhook [%s]: Missing X-SIGNATURE or X-TIMESTAMP. Security rejection.", correlation_id)
             return request.make_response(
                 json.dumps({
                     'merchantId': merchant_id,
@@ -165,20 +169,17 @@ class PaylabsController(http.Controller):
         # 5. Process notification using standard Odoo flow
         # ----------------------------------------------------------------
         try:
-            _logger.info("Paylabs: Handing over to _handle_notification_data for ref=%s", merchant_trade_no)
+            _logger.info("Paylabs Webhook [%s]: Handing over to _handle_notification_data", correlation_id)
             request.env['payment.transaction'].sudo()._handle_notification_data('paylabs', notification_data)
             
             # CRITICAL: Force commit so the status change is immediately visible to the frontend polling
             request.env.cr.commit()
             
-            _logger.info("Paylabs: _handle_notification_data completed for ref=%s", merchant_trade_no)
+            _logger.info("Paylabs Webhook [%s]: _handle_notification_data completed", correlation_id)
         except Exception as e:
-            _logger.exception(
-                "Paylabs webhook: error processing notification for ref=%s: %s",
-                merchant_trade_no, e
-            )
+            _logger.exception("Paylabs Webhook [%s]: error processing notification: %s", correlation_id, e)
 
-        _logger.info("=== PAYLABS WEBHOOK DEBUG END ===")
+        _logger.info("=== PAYLABS WEBHOOK END [%s] ===", correlation_id)
 
         # ----------------------------------------------------------------
         # 6. Always return 200 OK with success response

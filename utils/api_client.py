@@ -171,19 +171,23 @@ class PaylabsApiClient:
                 headers = self._build_headers(body_dict, path, timestamp, request_id)
 
                 _logger.info("Paylabs API: Sending request to %s (Attempt %d/%d)...", url, attempt + 1, max_retries + 1)
+                
+                start_time = time.time()
                 response = requests.post(url, headers=headers, data=payload, timeout=20)
-                _logger.info("Paylabs API: Received response [%s]", response.status_code)
-                _logger.debug("Paylabs response body: %s", response.text)
+                latency = time.time() - start_time
+                
+                _logger.info("Paylabs API [%s]: Received response [%s] in %.2f seconds", request_id, response.status_code, latency)
+                _logger.debug("Paylabs response body [%s]: %s", request_id, response.text)
                 response.raise_for_status()
                 return response.json()
             except requests.exceptions.Timeout:
-                _logger.warning("Paylabs API timeout: %s (Attempt %d/%d)", url, attempt + 1, max_retries + 1)
+                _logger.warning("Paylabs API timeout [%s]: %s (Attempt %d/%d)", request_id, url, attempt + 1, max_retries + 1)
                 if attempt == max_retries:
-                    _logger.error("Paylabs API timeout after %d retries.", max_retries)
+                    _logger.error("Paylabs API timeout [%s] after %d retries.", request_id, max_retries)
                     raise
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s
             except requests.exceptions.RequestException as e:
-                _logger.error("Paylabs API error: %s | %s", url, e)
+                _logger.error("Paylabs API error [%s]: %s | %s", request_id, url, e)
                 if hasattr(e, 'response') and e.response is not None:
                     _logger.error("Paylabs API error response: %s", e.response.text)
                     # Don't retry on client errors (4xx) except 429 Too Many Requests
