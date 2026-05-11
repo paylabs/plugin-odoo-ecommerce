@@ -34,15 +34,25 @@ class PaymentTransaction(models.Model):
     paylabs_raw_webhook = fields.Text(string='Raw Webhook Data')
 
     def _get_paylabs_pretty_expiry(self):
-        """ Returns a human-readable expiry date (Hardcoded to 24 hours after creation). """
+        """ Returns a human-readable expiry date parsed from Paylabs API response. """
         self.ensure_one()
+        
+        # 1. Try to use the actual expiry time from Paylabs API if available
+        if self.paylabs_expired_time:
+            try:
+                from datetime import datetime
+                # Paylabs format: YYYYMMDDHHMMSS (e.g. 20260512184624)
+                dt = datetime.strptime(str(self.paylabs_expired_time), '%Y%m%d%H%M%S')
+                return dt.strftime('%d %B %Y, %H:%M')
+            except Exception:
+                pass
+
+        # 2. Fallback to hardcoded 24h (GMT+7 adjustment) if API expiry time is missing
         try:
             from datetime import timedelta
-            # Use transaction creation date + 24 hours
-            expiry_date = self.create_date + timedelta(hours=24)
-            
-            # Odoo stores datetimes in UTC, convert to local user timezone if possible 
-            # for display, or just format simply.
+            if not self.create_date:
+                return _("24 Hours from order time")
+            expiry_date = self.create_date + timedelta(hours=24 + 7)
             return expiry_date.strftime('%d %B %Y, %H:%M')
         except Exception:
             return _("24 Hours from order time")
