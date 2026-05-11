@@ -331,6 +331,19 @@ class PaymentTransaction(models.Model):
         if self.provider_code != 'paylabs':
             return
 
+        # 1. Record Locking Strategy: Prevent Race Conditions (Simultaneous Webhooks)
+        # Using ORM with_for_update instead of direct SQL to prevent direct SQL usage
+        try:
+            self.with_for_update(nowait=True).read(['state'])
+        except Exception as e:
+            _logger.warning("Paylabs: Transaction %s is currently locked by another process. Skipping to avoid race condition.", self.reference)
+            return
+
+        # 2. Prevent Duplicate Processing
+        if self.state in ('done', 'cancel'):
+            _logger.info("Paylabs: Transaction %s is already %s. Skipping duplicate processing.", self.reference, self.state)
+            return
+
         # Extract status from Paylabs notification (02 = Success)
         payment_status = str(data.get('status') or data.get('paymentStatus') or '')
         amount_received = data.get('totalAmount') or data.get('amount') or data.get('requestAmount')
