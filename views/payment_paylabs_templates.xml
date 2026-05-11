@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- 
+             STANDARD ODOO STATUS PAGE INHERITANCE
+             This template injects Paylabs payment instructions (QRIS/VA)
+             directly into the standard Odoo /payment/status page.
+        -->
+        <template id="payment_confirmation_status_paylabs" inherit_id="payment.state_header">
+            <xpath expr="//div[@name='o_payment_status_alert']" position="after">
+                <!-- Only show for pending Paylabs transactions -->
+                <t t-set="paylabs_tx" t-value="tx if tx and tx.provider_code == 'paylabs' and tx.state == 'pending' else False"/>
+                
+                <div t-if="paylabs_tx" class="paylabs-instruction-container mt-3 mb-3 p-3 p-md-4 border rounded bg-white shadow-sm text-center mx-auto px-3">
+                    <div class="mb-3">
+                        <img src="/payment_paylabs/static/src/img/paylabs_logo.png" style="height: 30px; max-width: 100%; object-fit: contain;"/>
+                    </div>
+
+                    <!-- A. QRIS DISPLAY -->
+                    <div t-if="paylabs_tx.paylabs_payment_type == 'QRIS'" class="paylabs-qris-box">
+                        <h6 class="fw-bold text-uppercase text-muted mb-2 mb-md-3" style="letter-spacing: 1px; font-size: 0.9rem;">Scan QRIS to Pay</h6>
+                        <div class="d-block p-2 p-md-3 border rounded mb-3 bg-white mx-auto" style="max-width: 250px;">
+                            <img t-if="paylabs_tx.paylabs_qr_url" t-att-src="paylabs_tx.paylabs_qr_url" class="img-fluid" style="width: 100%;"/>
+                        </div>
+                        <div class="mb-3 px-0 px-md-2">
+                            <a t-if="paylabs_tx.paylabs_qr_url" t-att-href="paylabs_tx.paylabs_qr_url" download="qris_payment.png" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="fa fa-download me-1"></i> Save QR Code
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- B. VIRTUAL ACCOUNT DISPLAY -->
+                    <div t-elif="paylabs_tx.paylabs_va_code" class="paylabs-va-box">
+                        <h6 class="fw-bold text-uppercase text-muted mb-2" style="letter-spacing: 1px; font-size: 0.9rem;">
+                            <t t-esc="paylabs_tx.paylabs_payment_type"/> Virtual Account
+                        </h6>
+                        <div class="bg-light p-2 p-md-3 rounded mb-3 border">
+                            <div class="fs-4 fw-bold text-dark font-monospace mb-1 text-break" id="va_number_status" style="word-break: break-all;"><t t-esc="paylabs_tx.paylabs_va_code"/></div>
+                            <button class="btn btn-link btn-sm text-decoration-none" id="btn-copy-va-status">
+                                <i class="fa fa-copy me-1"></i> Copy Number
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- C. REDIRECT / H5 DISPLAY -->
+                    <div t-elif="paylabs_tx.paylabs_h5_url" class="paylabs-h5-box">
+                        <h6 class="fw-bold text-uppercase text-muted mb-3" style="letter-spacing: 1px; font-size: 0.9rem;">Complete Your Payment</h6>
+                        <div class="mb-3 px-2">
+                            <a t-att-href="paylabs_tx.paylabs_h5_url" class="btn btn-primary btn-lg w-100 shadow-sm py-3" style="background-color: #286E8F; border-color: #286E8F; font-weight: 700;">
+                                <i class="fa fa-external-link me-2"></i> PAY NOW
+                            </a>
+                        </div>
+                        <p class="text-muted small mb-3">Click the button above to be redirected to the secure payment page.</p>
+                    </div>
+
+                    <!-- Common Info -->
+                    <div class="alert alert-warning py-2 px-1 px-md-3 small mb-3" style="font-size: 0.85rem;">
+                        <i class="fa fa-clock-o me-1"></i> Valid until: 
+                        <strong>
+                            <t t-if="paylabs_tx.paylabs_payment_type == 'H5'">24 hours from order time</t>
+                            <t t-else=""><t t-esc="paylabs_tx._get_paylabs_pretty_expiry()"/></t>
+                        </strong>
+                    </div>
+
+                    <div class="text-muted small px-1" style="font-size: 0.75rem; line-height: 1.4;">
+                        <i class="fa fa-info-circle me-1"></i> The page will automatically update once your payment is received.
+                    </div>
+                </div>
+
+                <!-- Custom Script for Copy VA functionality on status page -->
+                <script t-if="paylabs_tx and paylabs_tx.paylabs_va_code" type="text/javascript">
+                    (function() {
+                        document.addEventListener('click', function(e) {
+                            const btn = e.target.closest('#btn-copy-va-status');
+                            if (!btn) return;
+                            
+                            const va = document.getElementById('va_number_status').textContent.trim();
+                            
+                            function updateBtn() {
+                                const oldHtml = btn.innerHTML;
+                                btn.innerHTML = '<i class="fa fa-check me-1"></i> Copied!';
+                                btn.classList.add('text-success');
+                                setTimeout(() => { 
+                                    btn.innerHTML = oldHtml; 
+                                    btn.classList.remove('text-success');
+                                }, 2000);
+                            }
+
+                            if (navigator.clipboard &amp;&amp; navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(va).then(updateBtn).catch(err => {
+                                    console.error('Clipboard error:', err);
+                                    fallbackCopy(va);
+                                });
+                            } else {
+                                fallbackCopy(va);
+                            }
+
+                            function fallbackCopy(text) {
+                                try {
+                                    const textArea = document.createElement("textarea");
+                                    textArea.value = text;
+                                    textArea.style.position = "fixed";
+                                    textArea.style.left = "-9999px";
+                                    textArea.style.top = "0";
+                                    document.body.appendChild(textArea);
+                                    textArea.focus();
+                                    textArea.select();
+                                    const successful = document.execCommand('copy');
+                                    document.body.removeChild(textArea);
+                                    if (successful) updateBtn();
+                                } catch (err) {
+                                    console.error('Fallback error:', err);
+                                }
+                            }
+                        });
+                    })();
+                </script>
+            </xpath>
+        </template>
+
+    </data>
+</odoo>

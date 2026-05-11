@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- =========================================================================
+             1. KANBAN VIEW OVERRIDE
+             This section ensures that the Paylabs card in the Payment Providers menu
+             behaves correctly. We include 'module_id' to help Odoo identify which
+             installed app owns this provider, enabling the 'Published' logic.
+             ========================================================================= -->
+        <record id="payment_provider_kanban_view_paylabs" model="ir.ui.view">
+            <field name="name">payment.provider.kanban.paylabs</field>
+            <field name="model">payment.provider</field>
+            <field name="inherit_id" ref="payment.payment_provider_kanban"/>
+            <field name="arch" type="xml">
+                <xpath expr="//kanban" position="inside">
+                    <field name="module_id" invisible="1"/>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- =========================================================================
+             2. FORM VIEW OVERRIDE (Backend Configuration)
+             This is where the Merchant configures their Paylabs account.
+             We use 'xpath' to inject our fields into Odoo's standard provider form.
+             ========================================================================= -->
+        <record id="payment_provider_paylabs_form_v3" model="ir.ui.view">
+            <field name="name">payment.provider.paylabs.form.v3</field>
+            <field name="model">payment.provider</field>
+            <field name="inherit_id" ref="payment.payment_provider_form"/>
+            <field name="arch" type="xml">
+                
+                <!-- A. RIBBON (TEST MODE)
+                     Safely handle the ribbon visibility. We use a more generic 
+                     xpath to target any web_ribbon and ensure it only shows in test mode for Paylabs. -->
+                <xpath expr="//widget[@name='web_ribbon']" position="attributes">
+                    <attribute name="invisible">state != 'test' or code != 'paylabs'</attribute>
+                </xpath>
+
+                <!-- B. CREDENTIALS TAB
+                     Injects Paylabs-specific API keys. 
+                     Note 'invisible="code != paylabs"': these fields only show up 
+                     when the user selects Paylabs. -->
+                <xpath expr="//notebook/page[@name='credentials']" position="inside">
+                    <group invisible="code != 'paylabs'" name="paylabs_credentials_group">
+                        <field name="paylabs_merchant_id" string="Merchant ID" required="code == 'paylabs'"
+                               help="Your Partner ID provided by Paylabs (X-PARTNER-ID)."/>
+                        <field name="paylabs_private_key" string="RSA Private Key" widget="password" required="code == 'paylabs'"
+                               help="The RSA Private Key generated for your merchant account. Used to sign requests."/>
+                        <field name="paylabs_public_key" string="Paylabs Public Key" widget="password"
+                               help="The RSA Public Key provided by Paylabs. Used to verify incoming webhook signatures."/>
+                    </group>
+                </xpath>
+
+                <!-- C. CONFIGURATION TAB
+                     Extra settings for managing Webhooks. -->
+                <xpath expr="//notebook/page[@name='configuration']" position="inside">
+                    <group invisible="code != 'paylabs'" name="paylabs_config_group">
+                        <!-- Group: Webhook configuration for status updates -->
+                        <group string="Webhooks" name="paylabs_webhooks">
+                            <field name="paylabs_notify_url" string="Webhook URL"
+                                   placeholder="https://yourdomain.com/payment/paylabs/webhook"
+                                   help="The URL where Paylabs will send payment notifications. Leave blank to use the automatically detected URL."/>
+                        </group>
+                    </group>
+                </xpath>
+
+            </field>
+        </record>
+
+    </data>
+</odoo>

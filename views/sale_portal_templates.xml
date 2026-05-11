@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <!-- 
+             Standard Odoo portal already handles pending transactions 
+             by showing a status button that links to /payment/status.
+             We no longer need custom alerts here as we follow the standard flow.
+        -->
+    </data>
+</odoo>

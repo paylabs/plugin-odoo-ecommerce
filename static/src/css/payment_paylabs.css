@@ -1,0 +1,79 @@
+/* Clean & Compact Design System */
+.paylabs-card {
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+    overflow: hidden;
+    background: #fff;
+}
+
+.paylabs-header {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 1.5rem !important;
+}
+
+.paylabs-body {
+    padding: 1.5rem !important;
+}
+
+.paylabs-footer {
+    background: #fff !important;
+    border-top: 1px solid #e2e8f0 !important;
+    padding: 1rem 1.5rem !important;
+}
+
+.paylabs-outline-box {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 6px;
+    padding: 1rem;
+    background: #fcfcfc;
+}
+
+.paylabs-btn-copy {
+    border: 1px solid #28B1AD !important;
+    color: #28B1AD !important;
+    background: transparent !important;
+    transition: all 0.2s;
+}
+
+.paylabs-btn-copy:hover {
+    background: #28B1AD !important;
+    color: #fff !important;
+}
+
+.paylabs-badge {
+    border: 1px solid #FFEDD5 !important;
+    background: #FFF7ED !important;
+    color: #F15A24 !important;
+    font-weight: 500;
+}
+
+/* Compact typography */
+.paylabs-title {
+    color: #1e293b;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 576px) {
+    .paylabs-instruction-container {
+        padding: 1.25rem 1rem !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    }
+
+    #va_number_status {
+        font-size: 1.4rem !important; /* Slightly smaller than fs-4 */
+        letter-spacing: 0.5px;
+    }
+
+    .paylabs-va-box h6, .paylabs-qris-box h6 {
+        font-size: 0.8rem !important;
+    }
+
+    .paylabs-instruction-container .alert {
+        padding: 0.5rem !important;
+        font-size: 0.75rem !important;
+    }
+}

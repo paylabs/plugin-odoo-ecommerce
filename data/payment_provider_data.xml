@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- ============================================================
+             Default Paylabs Payment Provider Record
+        ============================================================ -->
+        <record id="payment_provider_paylabs" model="payment.provider">
+            <field name="name">Paylabs</field>
+            <field name="code">paylabs</field>
+            <field name="state">disabled</field>
+            <field name="sequence" eval="20"/>
+            <field name="is_published" eval="True"/>
+            <field name="image_128" type="base64" file="payment_paylabs/static/description/icon.png"/>
+            <field name="pre_msg"><![CDATA[]]></field>
+            <field name="paylabs_enable_qris" eval="True"/>
+            <field name="paylabs_va_banks">BCAVA,BRIVA,BNIVA,MandiriVA,PermataVA,CIMBVA,BSIVA,NobuVA,BTNVA,MaybankVA,DanamonVA,BNCVA,MuamalatVA,SinarmasVA</field>
+            <field name="payment_method_ids" eval="[(6, 0, [
+                ref('payment_paylabs.payment_method_paylabs_qris'),
+                ref('payment_paylabs.payment_method_paylabs_bca'),
+                ref('payment_paylabs.payment_method_paylabs_bri'),
+                ref('payment_paylabs.payment_method_paylabs_bni'),
+                ref('payment_paylabs.payment_method_paylabs_mandiri'),
+                ref('payment_paylabs.payment_method_paylabs_permata'),
+                ref('payment_paylabs.payment_method_paylabs_cimb'),
+                ref('payment_paylabs.payment_method_paylabs_bsi'),
+                ref('payment_paylabs.payment_method_paylabs_btn'),
+                ref('payment_paylabs.payment_method_paylabs_danamon'),
+                ref('payment_paylabs.payment_method_paylabs_h5'),
+            ])]"/>
+        </record>
+
+    </data>
+</odoo>
