@@ -44,6 +44,17 @@ class PaymentProvider(models.Model):
         help='The endpoint where Paylabs will send payment status updates.',
     )
 
+    paylabs_after_payment_action = fields.Selection(
+        selection=[
+            ('quotation', 'Stay in Quotation / Manual Review'),
+            ('order', 'Auto Confirm Sale Order'),
+        ],
+        string='Action After Payment',
+        default='order',
+        required=True,
+        help='Choose what happens to the Quotation after a successful payment.'
+    )
+
     # 3. Compatibility & Legacy: Store these to avoid XML errors even if not used in logic.
     paylabs_enable_qris = fields.Boolean(string='Enable QRIS', default=True)
     paylabs_va_banks = fields.Char(string='VA Banks', help='Comma separated VA bank codes.')

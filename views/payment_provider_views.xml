@@ -62,6 +62,10 @@
                                    placeholder="https://yourdomain.com/payment/paylabs/webhook"
                                    help="The URL where Paylabs will send payment notifications. Leave blank to use the automatically detected URL."/>
                         </group>
+                        <group string="Automation" name="paylabs_automation">
+                            <field name="paylabs_after_payment_action" string="Action After Payment"
+                                   help="Choose whether the Quotation should be automatically confirmed into a Sale Order after successful payment."/>
+                        </group>
                     </group>
                 </xpath>
 

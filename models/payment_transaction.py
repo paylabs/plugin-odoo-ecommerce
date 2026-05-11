@@ -375,17 +375,25 @@ class PaymentTransaction(models.Model):
             # HARDENING: Force immediate post-processing for Sale Orders/Invoices
             # This ensures Quotations become Sale Orders instantly even in webhook context.
             try:
+                _logger.info("Paylabs: Starting post-processing for tx %s", self.reference)
                 self._finalize_post_processing()
                 
-                # SUPER HARDENING: If it's still Quotation, force confirm it.
-                # This handles cases where Odoo core might skip confirmation in custom webhook flows.
-                if hasattr(self, 'sale_order_ids') and self.sale_order_ids:
-                    for so in self.sale_order_ids.filtered(lambda s: s.state in ('draft', 'sent')):
-                        _logger.info("Paylabs: Force confirming Sale Order %s", so.name)
-                        so.sudo().action_confirm()
+                # SUPER HARDENING: If it's still Quotation, force confirm it ONLY if the 
+                # provider setting 'paylabs_after_payment_action' is set to 'order'.
+                if self.provider_id.paylabs_after_payment_action == 'order':
+                    if hasattr(self, 'sale_order_ids') and self.sale_order_ids:
+                        _logger.info("Paylabs: Found %d linked Sale Orders for tx %s", len(self.sale_order_ids), self.reference)
+                        for so in self.sale_order_ids.filtered(lambda s: s.state in ('draft', 'sent')):
+                            _logger.info("Paylabs: Force confirming Sale Order %s (Current state: %s)", so.name, so.state)
+                            so.sudo().action_confirm()
+                            _logger.info("Paylabs: Force confirmation successful for %s", so.name)
+                    else:
+                        _logger.warning("Paylabs: No sale_order_ids found linked to tx %s", self.reference)
+                else:
+                    _logger.info("Paylabs: Skipping auto-confirmation as per 'Action After Payment' setting (Manual Review mode)")
                         
             except Exception as e:
-                _logger.warning("Paylabs: Post-processing or Manual Confirmation failed: %s", e)
+                _logger.error("Paylabs: Post-processing or Manual Confirmation failed for %s: %s", self.reference, e, exc_info=True)
             
         elif payment_status == PAYLABS_PAYMENT_FAILED:
             self._set_canceled(state_message=_("Payment failed on Paylabs."))
