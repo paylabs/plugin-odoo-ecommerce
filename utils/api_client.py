@@ -186,6 +186,13 @@ class PaylabsApiClient:
                     _logger.error("Paylabs API timeout [%s] after %d retries.", request_id, max_retries)
                     raise
                 time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s
+            except ValueError as e:
+                # Catches json.JSONDecodeError if Paylabs returns HTML or invalid JSON (e.g., 502 Bad Gateway)
+                _logger.warning("Paylabs API invalid JSON response [%s]: %s (Attempt %d/%d)", request_id, e, attempt + 1, max_retries + 1)
+                if attempt == max_retries:
+                    _logger.error("Paylabs API invalid response [%s] after %d retries.", request_id, max_retries)
+                    raise
+                time.sleep(2 ** attempt)
             except requests.exceptions.RequestException as e:
                 _logger.error("Paylabs API error [%s]: %s | %s", request_id, url, e)
                 if hasattr(e, 'response') and e.response is not None:
