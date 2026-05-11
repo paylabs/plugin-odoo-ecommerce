@@ -145,19 +145,16 @@ class PaylabsApiClient:
             'Content-Type': 'application/json;charset=utf-8',
         }
 
-    def _post(self, path, body_dict):
+    def _post(self, path, body_dict, max_retries=2):
         """
-        Executes a POST request to the Paylabs API with error handling and logging.
+        Executes a POST request to the Paylabs API with error handling, logging, and retry mechanism.
         """
-        timestamp = _get_jakarta_timestamp()
-        
         # Ensure requestId in body matches X-REQUEST-ID in header
+        # Idempotency Support: If we retry, we use the SAME requestId
         request_id = body_dict.get('requestId')
         if not request_id:
             request_id = _get_request_id()
             body_dict['requestId'] = request_id
-
-        headers = self._build_headers(body_dict, path, timestamp, request_id)
 
         url = self.base_url + path
         payload = json.dumps(body_dict, separators=(',', ':'), ensure_ascii=False)
@@ -165,21 +162,37 @@ class PaylabsApiClient:
         _logger.info("Paylabs API POST %s | requestId=%s", url, request_id)
         _logger.debug("Paylabs request body: %s", payload)
 
-        try:
-            _logger.info("Paylabs API: Sending request to %s...", url)
-            response = requests.post(url, headers=headers, data=payload, timeout=20)
-            _logger.info("Paylabs API: Received response [%s]", response.status_code)
-            _logger.debug("Paylabs response body: %s", response.text)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.Timeout:
-            _logger.error("Paylabs API timeout: %s", url)
-            raise
-        except requests.exceptions.RequestException as e:
-            _logger.error("Paylabs API error: %s | %s", url, e)
-            if hasattr(e, 'response') and e.response is not None:
-                _logger.error("Paylabs API error response: %s", e.response.text)
-            raise
+        import time
+
+        for attempt in range(max_retries + 1):
+            try:
+                # We regenerate the timestamp and signature for each attempt to prevent expiry
+                timestamp = _get_jakarta_timestamp()
+                headers = self._build_headers(body_dict, path, timestamp, request_id)
+
+                _logger.info("Paylabs API: Sending request to %s (Attempt %d/%d)...", url, attempt + 1, max_retries + 1)
+                response = requests.post(url, headers=headers, data=payload, timeout=20)
+                _logger.info("Paylabs API: Received response [%s]", response.status_code)
+                _logger.debug("Paylabs response body: %s", response.text)
+                response.raise_for_status()
+                return response.json()
+            except requests.exceptions.Timeout:
+                _logger.warning("Paylabs API timeout: %s (Attempt %d/%d)", url, attempt + 1, max_retries + 1)
+                if attempt == max_retries:
+                    _logger.error("Paylabs API timeout after %d retries.", max_retries)
+                    raise
+                time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s
+            except requests.exceptions.RequestException as e:
+                _logger.error("Paylabs API error: %s | %s", url, e)
+                if hasattr(e, 'response') and e.response is not None:
+                    _logger.error("Paylabs API error response: %s", e.response.text)
+                    # Don't retry on client errors (4xx) except 429 Too Many Requests
+                    if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
+                        raise
+                
+                if attempt == max_retries:
+                    raise
+                time.sleep(2 ** attempt)  # Exponential backoff
 
     def _base_body(self, merchant_trade_no, request_id=None):
         """Return base request body fields."""

@@ -157,3 +157,5 @@ cython_debug/
 *.log
 *.zip
 *.tar.gz
+
+PRODUCTION_CHECKLIST.md
