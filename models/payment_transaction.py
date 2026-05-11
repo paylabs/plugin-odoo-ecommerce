@@ -376,8 +376,16 @@ class PaymentTransaction(models.Model):
             # This ensures Quotations become Sale Orders instantly even in webhook context.
             try:
                 self._finalize_post_processing()
+                
+                # SUPER HARDENING: If it's still Quotation, force confirm it.
+                # This handles cases where Odoo core might skip confirmation in custom webhook flows.
+                if hasattr(self, 'sale_order_ids') and self.sale_order_ids:
+                    for so in self.sale_order_ids.filtered(lambda s: s.state in ('draft', 'sent')):
+                        _logger.info("Paylabs: Force confirming Sale Order %s", so.name)
+                        so.sudo().action_confirm()
+                        
             except Exception as e:
-                _logger.warning("Paylabs: Post-processing failed or already handled: %s", e)
+                _logger.warning("Paylabs: Post-processing or Manual Confirmation failed: %s", e)
             
         elif payment_status == PAYLABS_PAYMENT_FAILED:
             self._set_canceled(state_message=_("Payment failed on Paylabs."))
