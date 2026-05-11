@@ -98,6 +98,21 @@ def verify_signature(body_str, path, timestamp, signature_b64, public_key_pem):
     _check_pycrypto()
 
     try:
+        # 1. Timestamp Tolerance Check (Replay Attack Prevention)
+        # Timestamp format: 2024-01-01T12:00:00.000+07:00
+        from datetime import datetime, timezone
+        from dateutil.parser import isoparse
+        
+        incoming_time = isoparse(timestamp)
+        now = datetime.now(timezone.utc)
+        
+        # Allow max 5 minutes (300 seconds) tolerance for clock drift / delay
+        diff_seconds = abs((now - incoming_time).total_seconds())
+        if diff_seconds > 300:
+            _logger.warning("Paylabs webhook rejected: Timestamp out of tolerance (%s seconds diff)", diff_seconds)
+            return False
+
+        # 2. RSA-SHA256 Signature Verification
         binary_signature = base64.b64decode(signature_b64)
         sha_json = hashlib.sha256(body_str.encode('utf-8')).hexdigest()
         string_to_sign = f"POST:{path}:{sha_json}:{timestamp}"
