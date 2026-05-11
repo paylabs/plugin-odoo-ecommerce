@@ -35,7 +35,26 @@ Sebelum memulai instalasi, pastikan sistem Anda memenuhi kriteria berikut:
 
 ---
 
-## 3. Konfigurasi Provider Paylabs
+## 3. Pengaturan Hak Akses (Linux Server)
+
+Jika Anda menggunakan server Linux (Ubuntu/Debian), pastikan Odoo memiliki izin untuk membaca file modul:
+
+1. **Ubah Kepemilikan**:
+   Ganti `odoo` dengan nama user sistem Odoo Anda jika berbeda.
+   ```bash
+   sudo chown -R odoo:odoo /path/to/addons/payment_paylabs
+   ```
+
+2. **Atur Permission**:
+   Berikan izin akses standar (755 untuk folder, 644 untuk file).
+   ```bash
+   sudo find /path/to/addons/payment_paylabs -type d -exec chmod 755 {} \;
+   sudo find /path/to/addons/payment_paylabs -type f -exec chmod 644 {} \;
+   ```
+
+---
+
+## 4. Konfigurasi Provider Paylabs
 
 Setelah modul terinstal, Anda perlu menghubungkannya dengan akun Paylabs Anda:
 
@@ -55,7 +74,7 @@ Setelah modul terinstal, Anda perlu menghubungkannya dengan akun Paylabs Anda:
 
 ---
 
-## 4. Konfigurasi Webhook (Notification URL)
+## 5. Konfigurasi Webhook (Notification URL)
 
 Agar status pesanan di Odoo otomatis berubah menjadi "Lunas" (Paid), Anda harus mengatur URL Notifikasi di Portal Merchant Paylabs.
 
@@ -65,7 +84,7 @@ Agar status pesanan di Odoo otomatis berubah menjadi "Lunas" (Paid), Anda harus 
 
 ---
 
-## 5. Troubleshooting (Masalah Umum)
+## 6. Troubleshooting (Masalah Umum)
 
 - **Tombol Paylabs Tidak Muncul**: Pastikan mata uang transaksi adalah **IDR**. Tombol tidak akan muncul jika menggunakan USD atau mata uang lainnya.
 - **Status Tidak Berubah Menjadi Paid**:
