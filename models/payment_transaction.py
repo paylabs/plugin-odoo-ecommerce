@@ -372,6 +372,13 @@ class PaymentTransaction(models.Model):
             # Odoo core will handle SO confirmation automatically during post-processing.
             self._set_done()
             
+            # HARDENING: Force immediate post-processing for Sale Orders/Invoices
+            # This ensures Quotations become Sale Orders instantly even in webhook context.
+            try:
+                self._finalize_post_processing()
+            except Exception as e:
+                _logger.warning("Paylabs: Post-processing failed or already handled: %s", e)
+            
         elif payment_status == PAYLABS_PAYMENT_FAILED:
             self._set_canceled(state_message=_("Payment failed on Paylabs."))
         elif payment_status == PAYLABS_PAYMENT_PENDING:
