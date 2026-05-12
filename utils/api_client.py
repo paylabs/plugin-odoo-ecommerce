@@ -99,18 +99,20 @@ class PaylabsApiClient:
         )
     """
 
-    def __init__(self, merchant_id, private_key, mode='sandbox', notify_url=None):
+    def __init__(self, merchant_id, private_key, mode='sandbox', notify_url=None, store_id=None):
         """
         Initializes the Paylabs API Client.
         :param merchant_id: Merchant ID from Paylabs.
         :param private_key: RSA Private Key for signing.
         :param mode: 'sandbox' (testing) or 'production' (live).
         :param notify_url: Default URL to receive webhook notifications.
+        :param store_id: Optional Store ID.
         """
         self.merchant_id = merchant_id
         self.private_key = private_key
         self.mode = mode
         self.default_notify_url = notify_url
+        self.store_id = store_id
 
         if mode == 'production':
             self.base_url = URL_PRODUCTION + API_VERSION
@@ -250,8 +252,9 @@ class PaylabsApiClient:
         })
         if notify_url or self.default_notify_url:
             body['notifyUrl'] = notify_url or self.default_notify_url
-        if store_id:
-            body['storeId'] = str(store_id)
+        actual_store_id = store_id or self.store_id
+        if actual_store_id:
+            body['storeId'] = str(actual_store_id)
 
         return self._post(path, body)
 
@@ -317,8 +320,9 @@ class PaylabsApiClient:
         })
         if notify_url or self.default_notify_url:
             body['notifyUrl'] = notify_url or self.default_notify_url
-        if store_id:
-            body['storeId'] = str(store_id)
+        actual_store_id = store_id or self.store_id
+        if actual_store_id:
+            body['storeId'] = str(actual_store_id)
 
         return self._post(path, body)
 

@@ -44,6 +44,12 @@ class PaymentProvider(models.Model):
         help='The endpoint where Paylabs will send payment status updates.',
     )
 
+    paylabs_store_id = fields.Char(
+        string='Store ID',
+        help='The unique Store ID assigned to you by Paylabs. Optional.',
+        groups='base.group_system',
+    )
+
     paylabs_after_payment_action = fields.Selection(
         selection=[
             ('quotation', 'Stay in Quotation / Manual Review'),
@@ -256,6 +262,7 @@ class PaymentProvider(models.Model):
             private_key=(self.paylabs_private_key or '').strip(),
             mode=self._get_paylabs_api_mode(),
             notify_url=self._get_paylabs_notify_url(),
+            store_id=(self.paylabs_store_id or '').strip(),
         )
 
     def _get_supported_currencies(self):
